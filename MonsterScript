@@ -1,0 +1,241 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+
+public class Monster : MonoBehaviour
+{
+
+    public GameObject StartPoint;
+    public GameObject GameManager;
+    public GameManager gm;
+    public GameObject UserInterface;
+    public GameUI userInterface;
+
+
+    public float wanderRadius = 50f;
+    public float wanderTimer = 10f;
+
+    CharacterController controller;
+    float heading;
+    Vector3 targetRotation;
+    public Animator animator = null;
+
+    public List<int> baseStats = new List<int>();
+
+    public static Monster Mon;
+
+    public Slider strSlider;
+    public Slider spdSlider;
+    public Slider defSlider;
+    public Slider intSlider;
+    public Slider conSlider;
+    public Slider chaSlider;
+
+    public Text StrText;
+    public Text SpdText;
+    public Text DefText;
+    public Text IntText;
+    public Text ConText;
+    public Text ChaText;
+
+    public float speed = 5;
+    public float directionChangeInterval = 1;
+    public float maxHeadingChange = 30;
+
+    
+
+    public int mod = 0;
+
+    public bool isTraining = false;
+    public bool foundStart = false;
+
+
+
+    public void Awake()
+    {
+        
+    }
+
+    public void Start()
+    {
+
+        SaveMonster();
+        SaveData();
+        Stats();
+       
+        controller = GetComponent<CharacterController>();
+        animator = GetComponent<Animator>();
+    }
+  
+    public void Update()
+    {
+        GetStartPoint();
+        MoveTime();
+        FindGM();
+        FindUI();
+       
+        
+        #region Animation
+        if (controller.velocity.sqrMagnitude == 0)
+        {
+            animator.SetFloat("Speed", 0);
+        }
+        else
+        {
+            animator.SetFloat("Speed", 1);
+
+        }
+        #endregion
+    }
+
+
+    //timer to change direction while moving
+    IEnumerator NewHeading()
+    {
+        while (true)
+        {
+            NewHeadingRoutine();
+            yield return new WaitForSeconds(directionChangeInterval);
+        }
+    }
+
+
+    // Saves monster stats into the UI slider and texts
+    public void SaveData()
+    {
+        Mon.strSlider = strSlider;
+        Mon.spdSlider = spdSlider;
+        Mon.defSlider = defSlider;
+        Mon.intSlider = intSlider;
+        Mon.conSlider = conSlider;
+        Mon.chaSlider = chaSlider;
+
+        Mon.StrText = StrText;
+        Mon.SpdText = SpdText;
+        Mon.DefText = DefText;
+        Mon.IntText = IntText;
+        Mon.ConText = ConText;
+        Mon.ChaText = ChaText;
+
+    }
+    //saves current monster during scene changes
+    public void SaveMonster()
+    {
+        if (Mon == null)
+        {
+            Mon = this;
+            DontDestroyOnLoad(gameObject);
+            
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    //base stats for monster
+    public void Stats()
+    {
+        baseStats[0] = 75; //Strength
+        baseStats[1] = 75; //Speed
+        baseStats[2] = 75; //Defense
+        baseStats[3] = 75; //Intelligence
+        baseStats[4] = 75; //Constitution
+        baseStats[5] = 75; //Charisma
+        baseStats[6] = 0; //Loyalty
+        baseStats[7] = 0; //Status
+        baseStats[8] = 0; //Age
+    }
+
+
+    //finds Game Manager and Game Manager Script
+    public void FindGM()
+    {
+        GameManager = GameObject.FindGameObjectWithTag("GameManager");
+        gm = GameObject.FindGameObjectWithTag("GameManager").GetComponent<GameManager>();
+    }
+
+    //Finds UI and UI Script
+    public void FindUI()
+    {
+        UserInterface = GameObject.FindGameObjectWithTag("GameUI");
+        userInterface = GameObject.FindGameObjectWithTag("GameUI").GetComponent<GameUI>();
+    }
+
+    //Should find Monster Start point
+    public void GetStartPoint()
+    {
+        
+        StartPoint = GameObject.FindGameObjectWithTag("StartPoint");
+       
+        
+    }
+
+    //Timer to let monster move from Start point
+    IEnumerator moveTime()
+    {
+        yield return new WaitForSeconds(5);
+        foundStart = false;
+        if(foundStart == false)
+        {
+            StartMovement();
+            GetNewPosition();
+        }
+        
+
+    }
+
+    //should set monster Transform to Start point transform
+    public void MoveTime()
+    {
+
+        if (StartPoint != null)
+        {
+            foundStart = true;
+            if (foundStart == true)
+            {
+                transform.position = StartPoint.transform.position;
+                
+            }
+        }
+        StartCoroutine(moveTime());
+
+    }
+
+    
+    //just finds the current scene name
+ public void GetScene()
+    {
+        Scene currentScene = SceneManager.GetActiveScene();
+        string sceneName = currentScene.name;
+    }
+
+    
+    // this down is the Wander AI script. Makes it so the monster just wanders around the environment to give a sense of consciousness
+    public void GetNewPosition()
+    {
+        
+        transform.eulerAngles = Vector3.Slerp(transform.eulerAngles, targetRotation, Time.deltaTime * directionChangeInterval);
+        var forward = transform.TransformDirection(Vector3.forward);
+        controller.SimpleMove(forward * speed);
+    }
+
+    public void NewHeadingRoutine()
+    {
+        var floor = Mathf.Clamp(heading - maxHeadingChange, 0, 360);
+        var ceil = Mathf.Clamp(heading + maxHeadingChange, 0, 360);
+        heading = Random.Range(floor, ceil);
+        targetRotation = new Vector3(0, heading, 0);
+    }
+
+    public void StartMovement()
+    {
+        
+        
+        StartCoroutine(NewHeading());
+        heading = Random.Range(0, 0);
+        transform.eulerAngles = new Vector3(0, heading, 0);
+    }
+}
